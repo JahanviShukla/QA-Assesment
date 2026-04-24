@@ -3,6 +3,7 @@ package com.qa.automation.stepdefinitions;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.LoadState;
+import com.microsoft.playwright.options.WaitForSelectorState;
 import com.qa.automation.pages.CartPage;
 import com.qa.automation.pages.HomePage;
 import com.qa.automation.pages.ProductListingPage;
@@ -32,40 +33,56 @@ public class CartStepDefinitions {
 
     @When("user navigates to {string} category")
     public void userNavigatesToCategory(String category) {
-        // After login, we need to click the menu button first to access navigation
-        logger.info("Attempting to click menu button to access navigation");
-
+        // Try to click menu button if visible, but don't fail the test if it's not needed
         try {
-            // Wait a bit for page to stabilize after login
-            page.waitForLoadState(com.microsoft.playwright.options.LoadState.DOMCONTENTLOADED);
-
-            // Try multiple strategies to find and click the menu button
+            // Use multiple selector strategies similar to HomePage pattern
             Locator menuButton = null;
 
-            // Strategy 1: Try the primary selector
-            menuButton = page.locator("//div[contains(@class,'hfe-nav-menu-icon')]//i[@tabindex='0']").first();
-            if (menuButton.isVisible()) {
-                menuButton.click();
-                logger.info("Clicked menu button using primary selector");
-            } else {
-                // Strategy 2: Try alternative menu button selectors
-                Locator altMenuButton = page.locator(".hfe-nav-menu-icon, [class*='menu-icon'], [class*='hamburger'], button:has-text('Menu')").first();
-                if (altMenuButton.isVisible()) {
-                    altMenuButton.click();
-                    logger.info("Clicked menu button using alternative selector");
-                } else {
-                    logger.info("Menu button not visible, attempting direct navigation");
+            // Strategy 1: Try the standard menu toggle selector
+            Locator standardMenu = page.locator(".menu-toggle, .ast-menu-toggle, [aria-label*='menu'], .elementor-menu-toggle").first();
+            if (standardMenu.isVisible()) {
+                menuButton = standardMenu;
+                logger.info("Found standard menu button");
+            }
+
+            // Strategy 2: Try hfe-nav-menu-icon with proper hierarchy
+            if (menuButton == null) {
+                Locator hfeMenu = page.locator(".hfe-nav-menu-icon i, .hfe-nav-menu-icon [tabindex='0']").first();
+                if (hfeMenu.isVisible()) {
+                    menuButton = hfeMenu;
+                    logger.info("Found hfe menu button");
                 }
             }
 
-            // Small wait for menu to expand if clicked
-            if (menuButton != null && menuButton.isVisible()) {
-                page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE);
+            // Strategy 3: Try any element with menu-related classes
+            if (menuButton == null) {
+                Locator genericMenu = page.locator("[class*='menu-toggle'], [class*='nav-menu'], [aria-label*='Menu']").first();
+                if (genericMenu.isVisible()) {
+                    menuButton = genericMenu;
+                    logger.info("Found generic menu button");
+                }
+            }
+
+            // Click the menu button if found
+            if (menuButton != null) {
+                menuButton.scrollIntoViewIfNeeded();
+                menuButton.click(new Locator.ClickOptions().setForce(true).setTimeout(5000));
+                logger.info("Successfully clicked menu button");
+                // Wait for menu to become visible instead of using timeout
+                try {
+                    Locator menuItems = page.locator(".menu, nav, [class*='navigation']").first();
+                    menuItems.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(2000));
+                } catch (Exception e) {
+                    logger.debug("Menu items not immediately visible: {}", e.getMessage());
+                }
+            } else {
+                logger.info("No visible menu button found, proceeding without clicking menu");
             }
         } catch (Exception e) {
             logger.warn("Could not click menu button, proceeding directly: {}", e.getMessage());
         }
 
+        // Navigate to the requested category
         if (category.contains("Men")) {
             productListingPage = homePage.navigateToMensWatches();
         } else if (category.contains("Women")) {

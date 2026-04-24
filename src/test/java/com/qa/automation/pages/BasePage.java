@@ -28,7 +28,11 @@ public class BasePage {
             locator.click(new Locator.ClickOptions().setTimeout(10000).setForce(true));
         } catch (Exception e) {
             logger.warn("Standard click failed, trying with scroll: {}", e.getMessage());
-            locator.scrollIntoViewIfNeeded();
+            try {
+                locator.scrollIntoViewIfNeeded();
+            } catch (Exception scrollException) {
+                logger.debug("Scroll into view failed, attempting click anyway: {}", scrollException.getMessage());
+            }
             locator.click(new Locator.ClickOptions().setTimeout(15000).setForce(true));
         }
     }
@@ -39,7 +43,11 @@ public class BasePage {
             locator.click(new Locator.ClickOptions().setTimeout(10000).setForce(true));
         } catch (Exception e) {
             logger.warn("Standard click failed for {}, trying with scroll: {}", description, e.getMessage());
-            locator.scrollIntoViewIfNeeded();
+            try {
+                locator.scrollIntoViewIfNeeded();
+            } catch (Exception scrollException) {
+                logger.debug("Scroll into view failed for {}, attempting click anyway: {}", description, scrollException.getMessage());
+            }
             locator.click(new Locator.ClickOptions().setTimeout(15000).setForce(true));
         }
     }

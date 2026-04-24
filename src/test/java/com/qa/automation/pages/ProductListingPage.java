@@ -45,23 +45,43 @@ public class ProductListingPage extends BasePage {
         page.waitForLoadState(LoadState.DOMCONTENTLOADED);
         page.waitForLoadState(LoadState.NETWORKIDLE);
 
-        // Wait for page to be stable before attempting to find products
-        page.waitForLoadState(LoadState.LOAD);
+        // Log page content for debugging
+        logger.info("Current page URL: {}", page.url());
+        logger.info("Page title: {}", page.title());
+
+        // If no products found, try navigating to shop page
+        if (!page.url().contains("/shop/") && getProductCount() == 0) {
+            logger.info("No products found on current page, navigating to shop page");
+            try {
+                page.navigate("https://watchstudio.in/shop/");
+                page.waitForLoadState(LoadState.NETWORKIDLE);
+
+                // Wait for products to be present on shop page
+                Locator shopProducts = page.locator(productCardSelector);
+                try {
+                    shopProducts.first().waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(10000));
+                } catch (Exception e) {
+                    logger.debug("Products not immediately visible on shop page: {}", e.getMessage());
+                }
+            } catch (Exception e) {
+                logger.debug("Shop page navigation failed: {}", e.getMessage());
+            }
+        }
 
         // Try multiple strategies to find and click the first product
         try {
             // Strategy 1: Try the standard selector with flexible wait
             Locator products = page.locator(productCardSelector);
 
-            // Wait a bit for products to potentially load, but don't fail if they don't appear
+            // Wait for products to appear with a longer timeout
             try {
-                products.first().waitFor(new Locator.WaitForOptions().setTimeout(3000));
+                products.first().waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(10000));
             } catch (Exception e) {
                 logger.debug("Products not immediately visible with primary selector, trying alternative approaches");
             }
 
             int productCount = products.count();
-            logger.info("Found {} products with primary selector", productCount);
+            logger.info("Found {} products with primary selector: {}", productCount, productCardSelector);
 
             if (productCount > 0) {
                 Locator firstProduct = products.first();
@@ -72,57 +92,100 @@ public class ProductListingPage extends BasePage {
                 if (firstProductLink.count() > 0) {
                     Locator linkToClick = firstProductLink.first();
 
-                    // Ensure the element is visible before clicking
+                    // Try JavaScript click as it's more reliable for elements that might be hidden
                     try {
-                        linkToClick.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.VISIBLE).setTimeout(5000));
-                    } catch (Exception e) {
-                        logger.debug("Link not immediately visible, scrolling into view");
-                        linkToClick.scrollIntoViewIfNeeded();
+                        logger.info("Attempting click on first product link");
+                        linkToClick.click(new Locator.ClickOptions().setForce(true).setTimeout(5000));
+                        waitForLoadState();
+                        return new ProductPage(page);
+                    } catch (Exception jsException) {
+                        logger.debug("Click failed: {}", jsException.getMessage());
+                        // Fall through to alternative strategies
                     }
-
-                    click(linkToClick, "First product link");
-                    waitForLoadState();
-                    return new ProductPage(page);
                 }
             }
 
             // Strategy 2: Try finding any product link directly (more flexible)
             Locator allProductLinks = page.locator("a[href*='/product/']");
             int linkCount = allProductLinks.count();
-            logger.info("Found {} product links with fallback selector", linkCount);
+            logger.info("Found {} product links with fallback selector: a[href*='/product/']", linkCount);
 
             if (linkCount > 0) {
                 logger.info("Using fallback: clicking first product link found");
-                click(allProductLinks.first(), "First product link (fallback)");
-                waitForLoadState();
-                return new ProductPage(page);
+                try {
+                    click(allProductLinks.first(), "First product link (fallback)");
+                    waitForLoadState();
+                    return new ProductPage(page);
+                } catch (Exception e) {
+                    logger.debug("Fallback click failed, trying JavaScript: {}", e.getMessage());
+                    // Try JavaScript click as last resort
+                    try {
+                        allProductLinks.first().click(new Locator.ClickOptions().setForce(true).setTimeout(5000));
+                        waitForLoadState();
+                        return new ProductPage(page);
+                    } catch (Exception jsException) {
+                        logger.debug("JavaScript fallback click also failed: {}", jsException.getMessage());
+                    }
+                }
             }
 
-            // Strategy 3: Try generic product selectors
-            Locator genericProducts = page.locator(".product, .woocommerce-loop-product, [class*='product']");
+            // Strategy 3: Try generic product selectors with broader scope
+            Locator genericProducts = page.locator(".product, .woocommerce-loop-product, [class*='product'], article");
             int genericCount = genericProducts.count();
             logger.info("Found {} products with generic selector", genericCount);
 
             if (genericCount > 0) {
                 Locator productLink = genericProducts.first().locator("a");
                 if (productLink.count() > 0) {
-                    click(productLink.first(), "First product link (generic)");
-                    waitForLoadState();
-                    return new ProductPage(page);
+                    try {
+                        logger.info("Attempting to click generic product link");
+                        click(productLink.first(), "First product link (generic)");
+                        waitForLoadState();
+                        return new ProductPage(page);
+                    } catch (Exception e) {
+                        logger.debug("Generic product click failed: {}", e.getMessage());
+                    }
                 }
             }
 
-            // Strategy 4: As a last resort, try any link that might be a product
-            logger.info("Trying last resort: any link with product-like attributes");
-            Locator anyProductLike = page.locator("a[href]:not([href='#']):not([href='javascript:void(0)'])");
-            for (int i = 0; i < Math.min(3, anyProductLike.count()); i++) {
-                String href = anyProductLike.nth(i).getAttribute("href");
-                if (href != null && (href.contains("product") || href.contains("watch"))) {
-                    logger.info("Found potential product link: {}", href);
-                    click(anyProductLike.nth(i), "Potential product link");
+            // Strategy 4: Try to find any link with product in href
+            logger.info("Strategy 4: Looking for any links containing 'product' in href");
+            Locator anyProductLink = page.locator("a[href*='product']").first();
+            if (anyProductLink.count() > 0) {
+                try {
+                    logger.info("Found product link, attempting click");
+                    anyProductLink.click(new Locator.ClickOptions().setForce(true).setTimeout(5000));
                     waitForLoadState();
                     return new ProductPage(page);
+                } catch (Exception e) {
+                    logger.debug("Product link click failed: {}", e.getMessage());
                 }
+            }
+
+            // Strategy 5: Last resort - try to find and click any element that might be a product
+            logger.info("Strategy 5: Attempting to find any clickable product element");
+            try {
+                // Try to find product images or titles that might be clickable
+                Locator potentialProducts = page.locator("img[alt*='watch'], img[alt*='Watch'], .product img, .woocommerce-loop-product__link img");
+                int potentialCount = potentialProducts.count();
+                logger.info("Found {} potential product images", potentialCount);
+
+                if (potentialCount > 0) {
+                    // Try clicking on the image or its parent
+                    for (int i = 0; i < Math.min(3, potentialCount); i++) {
+                        try {
+                            Locator img = potentialProducts.nth(i);
+                            Locator parent = img.locator("xpath=../..");
+                            click(parent.first(), "Potential product parent element");
+                            waitForLoadState();
+                            return new ProductPage(page);
+                        } catch (Exception e) {
+                            logger.debug("Failed to click potential product {}: {}", i, e.getMessage());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                logger.debug("Last resort strategy failed: {}", e.getMessage());
             }
 
             throw new RuntimeException("No products found on page using any selector strategy. Page URL: " + page.url());

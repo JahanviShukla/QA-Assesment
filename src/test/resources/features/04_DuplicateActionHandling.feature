@@ -6,7 +6,6 @@ Feature: WatchStudio Duplicate Action Handling
 
   Background:
     Given user is on the WatchStudio homepage
-    # And user is on a product details page
 
 
   Scenario: Double click on "Add to Cart" button
