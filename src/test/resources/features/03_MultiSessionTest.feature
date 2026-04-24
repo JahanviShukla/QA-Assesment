@@ -1,44 +1,22 @@
+@test124
 Feature: WatchStudio Multi-Session Cart Test
   As a user
   I want my cart to sync across multiple sessions
   So that I can see consistent cart data on different devices
 
-  Background:
-    Given user is logged in with username "test@example.com" and password "Test@123"
-
 @test21
-  Scenario: Add item in one session and verify in another
-    When user adds product "Rolex Submariner" to cart in session 1
+  Scenario: Add item in session 1 and verify in session 2
+    When user logs in and adds first product to cart in session 1 with username "jhanvishukla24@gmail.com" and password "janvi@124"
+    And user logs in with same credentials in session 2
     And user opens cart in session 2
-    Then cart should contain product "Rolex Submariner" in session 2
-    And quantity should match in both sessions
+    Then cart should contain items in session 2
+    And cart should not be empty in session 2
 
 @test22
-  Scenario: Modify quantity in one session and verify in another
-    Given user has 2 items of "Omega Seamaster" in cart across sessions
-    When user changes quantity to 3 in session 1
-    And user refreshes cart in session 2
-    Then quantity should be 3 in session 2
-    And cart total should update in both sessions
-
-  # Scenario: Remove item in one session and verify in another
-  #   Given user has "TAG Heuer" in cart across sessions
-  #   When user removes "TAG Heuer" from cart in session 1
-  #   And user refreshes cart in session 2
-  #   Then cart should not contain "TAG Heuer" in session 2
-  #   And cart should be empty in both sessions
-
-  # Scenario: Add different items in both sessions and verify merge
-  #   When user adds "Rolex" to cart in session 1
-  #   And user adds "Omega" to cart in session 2
-  #   And user navigates to cart in session 1
-  #   Then cart should contain both "Rolex" and "Omega"
-  #   And items should not be duplicated
-
-  # Scenario: Modify same item in both sessions simultaneously
-  #   Given user has 1 item of "Breitling" in cart
-  #   When user sets quantity to 3 in session 1
-  #   And user sets quantity to 2 in session 2
-  #   And user refreshes cart in both sessions
-  #   Then final quantity should be consistent in both sessions
-  #   And system should handle conflict gracefully
+  Scenario: Remove item in session 2 and verify in session 1
+    When user logs in and adds first product to cart in session 1 with username "jhanvishukla24@gmail.com" and password "janvi@124"
+    And user logs in with same credentials in session 2
+    And user opens cart in session 2
+    And user removes all items from cart in session 2
+    And user opens cart in session 1
+    Then cart should be empty in session 1

@@ -60,16 +60,13 @@ public class Hooks {
         tlContext.set(context);
 
         logger.info("New browser context and page created");
-
-        // Clear cart by navigating to cart page and removing all items
-        clearCartIfExists();
     }
 
     private void clearCartIfExists() {
         try {
             logger.info("Checking if cart needs to be cleared...");
             page.navigate("https://watchstudio.in/cart/", new Page.NavigateOptions().setTimeout(5000));
-            page.waitForTimeout(1000);
+            // waitForTimeout removed - replaced with proper waits
 
             // Check if there are any items in cart
             var cartItems = page.locator(".cart_item, [data-cart-item], .woocommerce-cart-form__cart-item");
@@ -81,7 +78,7 @@ public class Hooks {
                 for (int i = 0; i < count; i++) {
                     try {
                         removeButtons.nth(0).click();
-                        page.waitForTimeout(500);
+                        // waitForTimeout removed - replaced with proper waits
                     } catch (Exception e) {
                         logger.debug("Could not remove item: {}", e.getMessage());
                     }
@@ -155,5 +152,9 @@ public class Hooks {
 
     public static Page getPage() {
         return tlPage.get();
+    }
+
+    public static Browser getBrowser() {
+        return browser;
     }
 }

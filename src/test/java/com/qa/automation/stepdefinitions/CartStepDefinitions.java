@@ -2,6 +2,7 @@ package com.qa.automation.stepdefinitions;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.options.LoadState;
 import com.qa.automation.pages.CartPage;
 import com.qa.automation.pages.HomePage;
 import com.qa.automation.pages.ProductListingPage;
@@ -31,12 +32,35 @@ public class CartStepDefinitions {
 
     @When("user navigates to {string} category")
     public void userNavigatesToCategory(String category) {
-        // Fix strict mode violation by using first() or more specific selector
+        // After login, we need to click the menu button first to access navigation
+        logger.info("Attempting to click menu button to access navigation");
+
         try {
-            Locator menuButton = page.locator("//div[contains(@class,'hfe-nav-menu-icon')]//i[@tabindex='0']").first();
+            // Wait a bit for page to stabilize after login
+            page.waitForLoadState(com.microsoft.playwright.options.LoadState.DOMCONTENTLOADED);
+
+            // Try multiple strategies to find and click the menu button
+            Locator menuButton = null;
+
+            // Strategy 1: Try the primary selector
+            menuButton = page.locator("//div[contains(@class,'hfe-nav-menu-icon')]//i[@tabindex='0']").first();
             if (menuButton.isVisible()) {
                 menuButton.click();
-                logger.info("Clicked menu button");
+                logger.info("Clicked menu button using primary selector");
+            } else {
+                // Strategy 2: Try alternative menu button selectors
+                Locator altMenuButton = page.locator(".hfe-nav-menu-icon, [class*='menu-icon'], [class*='hamburger'], button:has-text('Menu')").first();
+                if (altMenuButton.isVisible()) {
+                    altMenuButton.click();
+                    logger.info("Clicked menu button using alternative selector");
+                } else {
+                    logger.info("Menu button not visible, attempting direct navigation");
+                }
+            }
+
+            // Small wait for menu to expand if clicked
+            if (menuButton != null && menuButton.isVisible()) {
+                page.waitForLoadState(com.microsoft.playwright.options.LoadState.NETWORKIDLE);
             }
         } catch (Exception e) {
             logger.warn("Could not click menu button, proceeding directly: {}", e.getMessage());
@@ -191,7 +215,7 @@ public class CartStepDefinitions {
         productListingPage = homePage.navigateToMensWatches();
         productPage = productListingPage.openFirstProduct();
         productPage.clickAddToCart();
-        page.waitForTimeout(2000); // Wait for add to cart to complete
+        page.waitForLoadState(LoadState.NETWORKIDLE);
         logger.info("User has items in cart");
     }
 

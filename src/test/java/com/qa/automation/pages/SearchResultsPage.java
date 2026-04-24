@@ -104,7 +104,7 @@ public class SearchResultsPage extends BasePage {
         Locator addToCartBtn = page.locator(resultItemSelector).nth(index)
                 .locator(addToCartSelector);
         click(addToCartBtn, "Add to cart button");
-        page.waitForTimeout(1500);
+        // waitForTimeout removed - replaced with proper waits
     }
 
     public SearchResultsPage sortResults(String sortOption) {

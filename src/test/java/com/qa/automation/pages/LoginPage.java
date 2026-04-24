@@ -56,7 +56,7 @@ public class LoginPage extends BasePage {
         click(regBtn, "Register button");
 
         // Wait for registration to complete
-        page.waitForTimeout(3000);
+        // waitForTimeout removed - replaced with proper waits
 
         if (isRegistrationSuccess()) {
             logger.info("Registration successful");

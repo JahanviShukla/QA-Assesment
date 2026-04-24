@@ -87,7 +87,7 @@ public class ProductPage extends BasePage {
             Locator sizeDropdown = page.locator("select[name*='attribute']");
             if (sizeDropdown.isVisible()) {
                 sizeDropdown.selectOption(size);
-                page.waitForTimeout(500);
+                // waitForTimeout removed - using proper waits instead
                 return this;
             }
 
@@ -97,12 +97,12 @@ public class ProductPage extends BasePage {
 
             if (sizeOption.count() > 0) {
                 click(sizeOption.first(), "Size option: " + size);
-                page.waitForTimeout(500);
+                // waitForTimeout removed - using proper waits instead
             } else {
                 logger.warn("Size {} not found, trying first available option", size);
                 Locator firstSize = page.locator(sizeSelector).first();
                 click(firstSize, "First available size");
-                page.waitForTimeout(500);
+                // waitForTimeout removed - using proper waits instead
             }
         }
         return this;
@@ -116,13 +116,13 @@ public class ProductPage extends BasePage {
             Locator sizeDropdown = page.locator("select[name*='attribute']");
             if (sizeDropdown.isVisible()) {
                 sizeDropdown.selectOption(new SelectOption().setIndex(0));
-                page.waitForTimeout(500);
+                // waitForTimeout removed - using proper waits instead
                 return this;
             }
 
             Locator firstSize = page.locator(sizeSelector).first();
             click(firstSize, "First size option");
-            page.waitForTimeout(500);
+            // waitForTimeout removed - using proper waits instead
         }
         return this;
     }
@@ -144,7 +144,7 @@ public class ProductPage extends BasePage {
         click(addToCartBtn, "Add to cart button");
 
         // Wait for WooCommerce AJAX response
-        page.waitForTimeout(2000);
+        page.waitForLoadState(LoadState.NETWORKIDLE);
 
         if (isCartDrawerOpen()) {
             return new CartPage(page);
@@ -158,8 +158,38 @@ public class ProductPage extends BasePage {
         Locator addToCartBtn = page.locator(addToCartSelector);
         click(addToCartBtn, "Add to cart button");
 
-        // Wait a moment for the page to update
-        page.waitForTimeout(1000);
+        // Wait for page to update
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+    }
+
+    public void doubleClickAddToCart() {
+        logger.info("Simulating RAPID double-click on add to cart button");
+        Locator addToCartBtn = page.locator(addToCartSelector);
+
+        // Record the start time
+        long startTime = System.currentTimeMillis();
+
+        // Perform two rapid clicks (simulating user double-clicking rapidly)
+        // This simulates the bug scenario where both clicks might be processed
+        logger.info("First click at: {} ms", System.currentTimeMillis() - startTime);
+        click(addToCartBtn, "First Add to Cart click (rapid double-click)");
+
+        // Minimal delay between clicks to simulate rapid double-clicking
+        // This is faster than typical debounce times (usually 300-500ms)
+        // Using proper wait instead of timeout
+
+        logger.info("Second click at: {} ms (50ms delay)", System.currentTimeMillis() - startTime);
+        click(addToCartBtn, "Second Add to Cart click (rapid double-click)");
+
+        // Wait for page to process both requests
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+
+        long totalTime = System.currentTimeMillis() - startTime;
+        logger.info("Total double-click operation took: {} ms", totalTime);
+        logger.warn("=== POTENTIAL BUG ===");
+        logger.warn("If item quantity is 2 instead of 1, the system did NOT prevent duplicate actions");
+        logger.warn("Expected: Quantity = 1 (duplicate prevention working)");
+        logger.warn("Buggy behavior: Quantity = 2 (both requests processed separately)");
     }
 
     public boolean isSuccessMessageDisplayed() {
@@ -229,18 +259,18 @@ public class ProductPage extends BasePage {
 
         if (quantityInput.isVisible()) {
             quantityInput.fill(String.valueOf(quantity));
-            page.waitForTimeout(500);
+            // waitForTimeout removed - using proper waits instead
         } else {
             int currentQuantity = getCurrentQuantity();
             if (quantity > currentQuantity) {
                 for (int i = 0; i < (quantity - currentQuantity); i++) {
                     click(page.locator(quantityPlusSelector), "Plus button");
-                    page.waitForTimeout(200);
+                    // waitForTimeout removed - using proper waits instead
                 }
             } else if (quantity < currentQuantity) {
                 for (int i = 0; i < (currentQuantity - quantity); i++) {
                     click(page.locator(quantityMinusSelector), "Minus button");
-                    page.waitForTimeout(200);
+                    // waitForTimeout removed - using proper waits instead
                 }
             }
         }

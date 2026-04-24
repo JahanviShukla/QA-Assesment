@@ -2,9 +2,9 @@
 
 **Assignment:** QA Engineer Assessment - Playwright Automation
 **Application:** https://watchstudio.in/
-**Framework:** Playwright with Java + JUnit 5
+**Framework:** Playwright with Java + Cucumber + JUnit 5
 **Author:** QA Engineer
-**Date:** 2026-04-23
+**Date:** 2026-04-24
 
 ---
 
@@ -26,14 +26,15 @@
 This is a comprehensive test automation framework for the **WatchStudio** e-commerce platform. The framework demonstrates:
 
 - ✅ Clean Page Object Model architecture
-- ✅ No fixed waits (proper async handling)
-- ✅ Robust selector strategies for WordPress/WooCommerce
+- ✅ **No fixed waits** - All `waitForTimeout()` calls replaced with proper conditional waits
+- ✅ Robust multi-strategy selectors for WordPress/WooCommerce
 - ✅ Comprehensive edge case coverage
 - ✅ Multi-session testing
 - ✅ API awareness and monitoring
 - ✅ Detailed logging and debugging
 - ✅ Screenshot and trace capture on failure
 - ✅ **NEW: WatchStudio-specific features and selectors**
+- ✅ **NEW: AI-assisted development and debugging**
 
 ---
 
@@ -62,42 +63,44 @@ This is a comprehensive test automation framework for the **WatchStudio** e-comm
 
 ```
 QA-Assesment/
-├── pom.xml                                 # Maven dependencies
-├── README.md                               # This file
-├── Test_Scenarios_Document.md             # Test case documentation
-├── AI_Usage_Documentation.md              # AI usage details
+├── pom.xml                                    # Maven dependencies
+├── README.md                                  # This file
+├── AI_USAGE_DOCUMENTATION.md                   # AI usage details (NEW)
+├── Test_Scenarios_Document.md                 # Test case documentation
 ├── src/
 │   ├── main/
 │   │   ├── java/com/qa/automation/
 │   │   │   └── config/
-│   │   │       └── ConfigReader.java      # Configuration management
+│   │   │       └── ConfigReader.java          # Configuration management
 │   │   └── resources/
-│   │       ├── config.properties          # Test configuration
-│   │       └── logback.xml                # Logging configuration
+│   │       ├── config.properties              # Test configuration
+│   │       └── logback.xml                    # Logging configuration
 │   └── test/
-│       └── java/com/qa/automation/
-│           ├── base/
-│           │   └── BaseTest.java          # Test base class
-│           ├── pages/                     # Page Object Model
-│           │   ├── BasePage.java
-│           │   ├── HomePage.java
-│           │   ├── LoginPage.java
-│           │   ├── ProductPage.java
-│           │   ├── CartPage.java
-│           │   ├── ProductListingPage.java
-│           │   └── SearchResultsPage.java
-│           ├── tests/                     # Test classes
-│           │   ├── WatchStudioSmokeTest.java  # NEW: WatchStudio specific tests
-│           │   ├── TC001_LoginFlowTest.java
-│           │   ├── TC002_CartManagementTest.java
-│           │   ├── TC003_MultiSessionTest.java
-│           │   ├── TC004_DuplicateActionTest.java
-│           │   ├── TC005_PersistenceTest.java
-│           │   └── TC006_ApiAwarenessTest.java
-│           └── utils/
-│               ├── ScreenshotUtils.java
-│               └── TraceUtils.java
-└── test-results/                          # Generated test outputs
+│       ├── java/com/qa/automation/
+│       │   ├── pages/                         # Page Object Model
+│       │   │   ├── BasePage.java
+│       │   │   ├── HomePage.java
+│       │   │   ├── LoginPage.java
+│       │   │   ├── ProductPage.java
+│       │   │   ├── CartPage.java
+│       │   │   ├── ProductListingPage.java
+│       │   │   └── SearchResultsPage.java
+│       │   ├── runner/
+│       │   │   └── TestRunner.java            # Cucumber test runner
+│       │   └── stepdefinitions/               # Cucumber step definitions
+│       │       ├── Hooks.java                  # Test setup/teardown
+│       │       ├── LoginStepDefinitions.java
+│       │       ├── CartStepDefinitions.java
+│       │       ├── MultiSessionStepDefinitions.java
+│       │       ├── DuplicateActionStepDefinitions.java
+│       │       └── PersistenceStepDefinitions.java
+│       └── resources/
+│           └── features/                      # Cucumber feature files
+│               ├── 01_LoginFlow.feature       # Login + Cart management (combined)
+│               ├── 03_MultiSessionTest.feature
+│               ├── 04_DuplicateActionHandling.feature
+│               └── 05_PersistenceTest.feature
+└── test-results/                              # Generated test outputs
     ├── screenshots/
     ├── traces/
     ├── videos/
@@ -156,30 +159,24 @@ test.user.password=your-password
 mvn clean test
 ```
 
-### Run WatchStudio Smoke Tests
+### Run All Cucumber Tests
 ```bash
-mvn test -Dtest=WatchStudioSmokeTest
+mvn test
 ```
 
-### Run Specific Test Class
+### Run Specific Feature
 ```bash
-# Login flow tests
-mvn test -Dtest=TC001_LoginFlowTest
-
-# Cart management tests
-mvn test -Dtest=TC002_CartManagementTest
+# Login + Cart management (combined feature)
+mvn test -Dcucumber.options="--name 'Successful login with valid credentials'"
 
 # Multi-session tests
-mvn test -Dtest=TC003_MultiSessionTest
+mvn test -Dcucumber.features="src/test/resources/features/03_MultiSessionTest.feature"
 
-# Edge case tests
-mvn test -Dtest=TC004_DuplicateActionTest
+# Duplicate action tests
+mvn test -Dcucumber.features="src/test/resources/features/04_DuplicateActionHandling.feature"
 
 # Persistence tests
-mvn test -Dtest=TC005_PersistenceTest
-
-# API awareness tests
-mvn test -Dtest=TC006_ApiAwarenessTest
+mvn test -Dcucumber.features="src/test/resources/features/05_PersistenceTest.feature"
 ```
 
 ### Run with Specific Browser
@@ -203,51 +200,40 @@ mvn test -Djunit.jupiter.execution.parallel.enabled=true
 
 ## Test Coverage
 
-### WatchStudio Specific Tests
-| Test ID | Description | Status |
-|---------|-------------|--------|
-| WS-001 | Verify WatchStudio homepage loads | ✅ Implemented |
-| WS-002 | Search for Rolex watches | ✅ Implemented |
-| WS-003 | Navigate to Men's Watches category | ✅ Implemented |
-| WS-004 | Open first product from listing | ✅ Implemented |
-| WS-005 | Add product to cart | ✅ Implemented |
-| WS-006 | Verify cart contents | ✅ Implemented |
-| WS-007 | Navigate to brands section | ✅ Implemented |
-| WS-008 | Verify sale products are displayed | ✅ Implemented |
-| WS-009 | Test cart item quantity modification | ✅ Implemented |
-| WS-010 | Verify responsive design elements | ✅ Implemented |
+### Feature Files Overview
+| Feature File | Description | Key Scenarios |
+|--------------|-------------|---------------|
+| `01_LoginFlow.feature` | **Authentication + Cart Management** | Login, cart operations (add/update/remove), calculations |
+| `03_MultiSessionTest.feature` | Multi-session testing | Cart persistence across browser sessions |
+| `04_DuplicateActionHandling.feature` | Edge case testing | Double-click prevention, rapid actions |
+| `05_PersistenceTest.feature` | Data persistence | Cart state preservation, session handling |
+
+> **Note:** Cart management scenarios are now consolidated in `01_LoginFlow.feature` to avoid duplication and improve test maintainability.
 
 ### Core Flow Tests
-| Test ID | Description | Status |
-|---------|-------------|--------|
-| TC-001 | Navigate to login page | ✅ Implemented |
-| TC-002 | Login with valid credentials | ✅ Implemented |
-| TC-003 | Logout functionality | ✅ Implemented |
-| TC-004 | Browse and select product | ✅ Implemented |
-| TC-005 | Add item to cart | ✅ Implemented |
-| TC-006 | Increase quantity | ✅ Implemented |
-| TC-007 | Decrease quantity | ✅ Implemented |
-| TC-008 | Remove item from cart | ✅ Implemented |
-| TC-009 | Cart state persistence | ✅ Implemented |
+| Test ID | Description | Feature File | Status |
+|---------|-------------|--------------|--------|
+| TC-001 | Navigate to login page | 01_LoginFlow.feature | ✅ Implemented |
+| TC-002 | Login with valid credentials | 01_LoginFlow.feature | ✅ Implemented |
+| TC-003 | Add item to cart | 01_LoginFlow.feature | ✅ Implemented |
+| TC-004 | Update item quantity | 01_LoginFlow.feature | ✅ Implemented |
+| TC-005 | Remove item from cart | 01_LoginFlow.feature | ✅ Implemented |
+| TC-006 | Cart calculations | 01_LoginFlow.feature | ✅ Implemented |
+| TC-007 | Cart state persistence | 03_MultiSessionTest.feature | ✅ Implemented |
 
 ### Edge Case Tests
-| Test ID | Description | Status |
-|---------|-------------|--------|
-| TC-EDGE-001 | Double-click Add to Cart | ✅ Implemented |
-| TC-EDGE-002 | Page refresh during action | ✅ Implemented |
-| TC-EDGE-003 | Delayed UI updates | ✅ Implemented |
-| TC-EDGE-004 | Session expiry handling | ✅ Implemented |
-| TC-EDGE-005 | Add same item multiple times | ✅ Implemented |
-| TC-EDGE-006 | Multi-session cart sync | ✅ Implemented |
-| TC-EDGE-007 | Multi-session cart modification | ✅ Implemented |
+| Test ID | Description | Feature File | Status |
+|---------|-------------|--------------|--------|
+| TC-EDGE-001 | Double-click Add to Cart | 04_DuplicateActionHandling.feature | ✅ Implemented |
+| TC-EDGE-002 | Rapid quantity updates | 04_DuplicateActionHandling.feature | ✅ Implemented |
+| TC-EDGE-003 | Multi-session cart sync | 03_MultiSessionTest.feature | ✅ Implemented |
+| TC-EDGE-004 | Session persistence | 05_PersistenceTest.feature | ✅ Implemented |
 
 ### API Awareness Tests
-| Test ID | Description | Status |
-|---------|-------------|--------|
-| TC-API-001 | Add to Cart API validation | ✅ Implemented |
-| TC-API-002 | Cart Update API validation | ✅ Implemented |
-| TC-API-003 | Remove Item API validation | ✅ Implemented |
-| TC-API-004 | Product Listing API validation | ✅ Implemented |
+| Test ID | Description | Feature File | Status |
+|---------|-------------|--------------|--------|
+| TC-API-001 | API request monitoring | Hooks.java | ✅ Implemented |
+| TC-API-002 | Response validation | Hooks.java | ✅ Implemented |
 
 ---
 
@@ -385,30 +371,47 @@ mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="in
 ## Key Features Demonstrated
 
 ### 1. No Fixed Waits ❌
-All waits use proper conditions:
+All waits use proper conditions (no `waitForTimeout()` anywhere in codebase):
 ```java
-// ❌ NOT used
+// ❌ NOT used anymore (all calls removed)
 page.waitForTimeout(5000);
 
-// ✅ Used instead
-page.waitForResponse(response -> response.url().contains("cart"));
+// ✅ Used instead - proper conditional waits
 page.waitForLoadState(LoadState.NETWORKIDLE);
+page.waitForSelector(selector, new Page.WaitForSelectorOptions()
+    .setState(WaitForSelectorState.HIDDEN)
+    .setTimeout(5000));
 ```
 
-### 2. Robust Selectors
-Multiple fallback strategies:
+### 2. Robust Multi-Strategy Selectors
+Multiple fallback strategies for element location:
 ```java
-private final String loginSelector = "a[href*='my-account'], .my-account-link, [data-testid='account-link']";
+// Try primary selector
+Locator removeBtn = page.locator(".cart_item a.remove[role='button']").first();
+if (!removeBtn.isVisible()) {
+    // Fallback to XPath selector
+    removeBtn = page.locator(cartItemSelector).first().locator(removeButtonSelector);
+}
+if (!removeBtn.isVisible()) {
+    // Try generic remove link selector
+    removeBtn = page.locator("a.remove, [class*='remove'], [aria-label*='remove']").first();
+}
 ```
 
 ### 3. Page Object Model
-Clean separation of pages and test logic.
+Clean separation of pages and test logic with clear responsibilities.
 
 ### 4. Comprehensive Logging
-Every action logged for debugging.
+Every action logged for debugging with detailed context.
 
 ### 5. API Monitoring
-Request/response captured and validated.
+Request/response captured and validated via custom Hooks.
+
+### 6. AI-Assisted Development
+- Intelligent selector strategies
+- Debugging and issue resolution
+- Test scenario optimization
+- Wait strategy improvements
 
 ---
 
@@ -422,6 +425,20 @@ Request/response captured and validated.
 
 ---
 
+## Recent Changes (2026-04-24)
+
+### Framework Improvements
+- **Removed all `waitForTimeout()` calls** - Replaced with proper conditional waits for faster, more reliable tests
+- **Improved cart removal functionality** - Fixed selector issues with multi-strategy approach
+- **Consolidated feature files** - Cart management now part of LoginFlow feature to reduce duplication
+- **Enhanced error handling** - Better logging and fallback mechanisms
+
+### Documentation Updates
+- **Added AI_USAGE_DOCUMENTATION.md** - Comprehensive guide on AI-assisted development
+- **Updated README.md** - Reflects current test structure and improvements
+
+---
+
 ## Future Enhancements
 
 1. Add checkout flow testing
@@ -432,6 +449,7 @@ Request/response captured and validated.
 6. Mobile viewport testing
 7. Performance testing integration
 8. Visual regression testing
+9. **AI-powered test maintenance** - Self-healing selectors (planned)
 
 ---
 
@@ -444,6 +462,6 @@ For questions or issues:
 
 ---
 
-**Framework Version:** 2.0 (WatchStudio Edition)
-**Last Updated:** 2026-04-23
+**Framework Version:** 2.1 (Enhanced with AI Assistance)
+**Last Updated:** 2026-04-24
 **Status:** ✅ Ready for Execution

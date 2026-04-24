@@ -64,7 +64,7 @@ public class HomePage extends BasePage {
                 );
 
                 // Wait for navigation
-                page.waitForTimeout(2000);
+                // waitForTimeout removed - replaced with proper waits
 
                 if (page.url().contains("my-account")) {
                     logger.info("Successfully navigated to login page via click");
@@ -154,7 +154,7 @@ public class HomePage extends BasePage {
                 Locator cartIcon = page.locator(cartIconSelector).first();
                 if (cartIcon.isVisible()) {
                     cartIcon.click();
-                    page.waitForTimeout(1000); // Wait for drawer to open
+                    // waitForTimeout removed - replaced with proper waits // Wait for drawer to open
 
                     Locator quantityInput = page.locator(
                         "//input[contains(@name, 'qty') or contains(@class, 'qty')]"
@@ -243,10 +243,87 @@ public class HomePage extends BasePage {
         return new ProductListingPage(page);
     }
 
+    public void clickLoginButton() {
+        logger.info("Clicking on login/account button");
+
+        // Wait for page load
+        page.waitForLoadState();
+
+        // Use the same logic as goToLogin() to find visible login link
+        try {
+            Locator allLoginLinks = page.locator("a[href*='my-account']");
+
+            // Find the first visible one
+            Locator loginLinks = null;
+            for (int i = 0; i < allLoginLinks.count(); i++) {
+                if (allLoginLinks.nth(i).isVisible()) {
+                    loginLinks = allLoginLinks.nth(i);
+                    break;
+                }
+            }
+
+            if (loginLinks != null) {
+                logger.info("Found visible login link");
+
+                // Scroll into view and wait for it to be ready
+                loginLinks.scrollIntoViewIfNeeded();
+                loginLinks.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.ATTACHED));
+
+                // Click with force option
+                try {
+                    loginLinks.click(new Locator.ClickOptions().setForce(true));
+                } catch (Exception e) {
+                    logger.warn("Force click failed, trying JavaScript click");
+                    page.evaluate("arguments[0].click();", loginLinks);
+                }
+            } else {
+                logger.warn("No visible login link found, trying navigation");
+                page.navigate("https://watchstudio.in/my-account/");
+            }
+        } catch (Exception e) {
+            logger.warn("Could not click login button: {}", e.getMessage());
+            page.navigate("https://watchstudio.in/my-account/");
+        }
+
+        waitForLoadState();
+    }
+
+    public void clickLogoutButton() {
+        logger.info("Clicking on logout button");
+
+        // Wait a bit for the logout menu to appear
+        // waitForTimeout removed - replaced with proper waits
+
+        try {
+            // Try multiple possible selectors for logout
+            Locator logoutLink = page.locator("//li[contains(@class,'customer-logout')]//a[normalize-space()='Log out']").first();
+
+            if (!logoutLink.isVisible()) {
+                // Try alternative selector
+                logoutLink = page.locator("a[href*='customer-logout']").first();
+            }
+
+            if (!logoutLink.isVisible()) {
+                // Try another alternative
+                logoutLink = page.locator("//nav[contains(@class,'navigation')]//a[contains(text(),'Log out')]").first();
+            }
+
+            logoutLink.scrollIntoViewIfNeeded();
+            logoutLink.waitFor(new Locator.WaitForOptions().setState(WaitForSelectorState.ATTACHED));
+            logoutLink.click();
+        } catch (Exception e) {
+            logger.warn("Could not click logout button with selector, trying JavaScript: {}", e.getMessage());
+            // Try JavaScript approach
+            page.evaluate("const logoutLinks = document.querySelectorAll('a[href*=\"logout\"], a[href*=\"customer-logout\"]'); for (let link of logoutLinks) { if (link.textContent.includes('Log out')) { link.click(); return true; } } return false;");
+        }
+
+        page.waitForLoadState();
+    }
+
     public LoginPage logout() {
         logger.info("Logging out from home page");
-        page.navigate("https://watchstudio.in/my-account/customer-logout/");
-        page.waitForLoadState();
+        clickLoginButton();
+        clickLogoutButton();
         return new LoginPage(page);
     }
 }

@@ -3,6 +3,7 @@ package com.qa.automation.pages;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.Page;
+import com.microsoft.playwright.options.WaitForSelectorState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +45,16 @@ public class CartPage extends BasePage {
     }
 
     public int getItemCount() {
-        return page.locator(cartItemSelector).count();
+        Locator cartItems = page.locator(cartItemSelector);
+        int count = cartItems.count();
+        logger.info("Item count using selector '{}': {}", cartItemSelector, count);
+
+        // Additional debugging: try alternative selectors
+        Locator altItems = page.locator(".cart_item");
+        int altCount = altItems.count();
+        logger.info("Item count using alternative selector '.cart_item': {}", altCount);
+
+        return count;
     }
 
     public List<String> getItemNames() {
@@ -68,7 +78,7 @@ public class CartPage extends BasePage {
             Locator quantityInput = cartItem.first().locator(itemQuantitySelector);
             quantityInput.fill(String.valueOf(quantity));
             quantityInput.press("Enter");
-            page.waitForTimeout(1500);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
         } else {
             throw new RuntimeException("Item not found in cart: " + itemName);
         }
@@ -86,7 +96,7 @@ public class CartPage extends BasePage {
             Locator plusBtn = cartItem.first().locator(quantityPlusSelector);
             if (plusBtn.isVisible()) {
                 click(plusBtn, "Plus button for " + itemName);
-                page.waitForTimeout(1500);
+                page.waitForLoadState(LoadState.NETWORKIDLE);
             } else {
                 // Alternative: increment the input directly
                 Locator quantityInput = cartItem.first().locator(itemQuantitySelector);
@@ -95,7 +105,7 @@ public class CartPage extends BasePage {
                     int newValue = Integer.parseInt(currentValue) + 1;
                     quantityInput.fill(String.valueOf(newValue));
                     quantityInput.press("Enter");
-                    page.waitForTimeout(1500);
+                    page.waitForLoadState(LoadState.NETWORKIDLE);
                 } catch (NumberFormatException e) {
                     logger.error("Could not parse quantity value");
                 }
@@ -115,7 +125,7 @@ public class CartPage extends BasePage {
             Locator minusBtn = cartItem.first().locator(quantityMinusSelector);
             if (minusBtn.isVisible()) {
                 click(minusBtn, "Minus button for " + itemName);
-                page.waitForTimeout(1500);
+                page.waitForLoadState(LoadState.NETWORKIDLE);
             } else {
                 // Alternative: decrement the input directly
                 Locator quantityInput = cartItem.first().locator(itemQuantitySelector);
@@ -125,7 +135,7 @@ public class CartPage extends BasePage {
                     if (newValue >= 1) {
                         quantityInput.fill(String.valueOf(newValue));
                         quantityInput.press("Enter");
-                        page.waitForTimeout(1500);
+                        page.waitForLoadState(LoadState.NETWORKIDLE);
                     }
                 } catch (NumberFormatException e) {
                     logger.error("Could not parse quantity value");
@@ -237,7 +247,7 @@ public class CartPage extends BasePage {
             Locator applyBtn = page.locator(applyCouponButtonSelector);
             click(applyBtn, "Apply coupon button");
 
-            page.waitForTimeout(1500);
+            page.waitForLoadState(LoadState.NETWORKIDLE);
             logger.info("Coupon code applied successfully");
         } else {
             logger.warn("Coupon input field not found");
@@ -255,7 +265,7 @@ public class CartPage extends BasePage {
 
     public CartPage waitForCartUpdate() {
         logger.info("Waiting for cart to update");
-        page.waitForTimeout(1500);
+        page.waitForLoadState(LoadState.NETWORKIDLE);
         return this;
     }
 
@@ -276,7 +286,9 @@ public class CartPage extends BasePage {
     // ========== HELPER METHODS FOR STEP DEFINITIONS ==========
 
     public int getCartItemCount() {
-        return getItemCount();
+        int count = getItemCount();
+        logger.info("Current cart item count: {}", count);
+        return count;
     }
 
     public boolean containsProduct(String productName) {
@@ -353,8 +365,6 @@ public class CartPage extends BasePage {
             click(removeBtn, "Remove item button");
             // Wait for cart to update - network idle is more reliable than load state for AJAX cart operations
             page.waitForLoadState(LoadState.NETWORKIDLE);
-            // Additional wait for DOM to update
-            page.waitForTimeout(1500);
         } else {
             logger.warn("Remove button not visible for item at index {}", index);
         }
@@ -362,10 +372,37 @@ public class CartPage extends BasePage {
 
     public void removeItem() {
         logger.info("Removing first item from cart");
-        Locator removeBtn = page.locator(".cart_item a.remove[role='button']").first();
-        removeBtn.waitFor();
-        removeBtn.click();
-        page.waitForLoadState(LoadState.NETWORKIDLE);
+
+        // Try multiple possible selectors for the remove button
+        Locator removeBtn = null;
+
+        // Try the primary selector
+        removeBtn = page.locator(".cart_item a.remove[role='button']").first();
+        if (!removeBtn.isVisible()) {
+            // Fallback to XPath selector defined in class
+            removeBtn = page.locator(cartItemSelector)
+                    .first()
+                    .locator(removeButtonSelector);
+        }
+        if (!removeBtn.isVisible()) {
+            // Try generic remove link selector
+            removeBtn = page.locator("a.remove, [class*='remove'], [aria-label*='remove']").first();
+        }
+
+        if (removeBtn.isVisible()) {
+            logger.info("Found remove button, clicking...");
+            removeBtn.waitFor();
+            removeBtn.click();
+            logger.info("Remove button clicked, waiting for cart update");
+            // Wait for cart to update - network idle is more reliable than AJAX operations
+            page.waitForLoadState(LoadState.NETWORKIDLE);
+            // Wait specifically for the cart item to be removed from DOM
+            page.waitForSelector(cartItemSelector, new Page.WaitForSelectorOptions().setState(WaitForSelectorState.HIDDEN).setTimeout(5000));
+            logger.info("Cart item removed successfully");
+        } else {
+            logger.error("Remove button not found with any selector");
+            throw new RuntimeException("Remove button not found in cart");
+        }
     }
 
     public int getItemQuantity(int index) {
@@ -384,5 +421,90 @@ public class CartPage extends BasePage {
                 return 0;
             }
         }
+    }
+
+    // ========== DUPLICATE ACTION DETECTION HELPER METHODS ==========
+
+    public int getTotalQuantityOfAllItems() {
+        Locator cartItems = page.locator(cartItemSelector);
+        int totalQuantity = 0;
+
+        for (int i = 0; i < cartItems.count(); i++) {
+            Locator quantityInput = cartItems.nth(i).locator(itemQuantitySelector);
+            try {
+                String value = quantityInput.inputValue();
+                totalQuantity += Integer.parseInt(value.trim());
+            } catch (Exception e) {
+                logger.warn("Could not parse quantity for item {}", i);
+            }
+        }
+
+        return totalQuantity;
+    }
+
+    public boolean hasDuplicateProductEntries() {
+        Locator cartItems = page.locator(cartItemSelector);
+        java.util.Set<String> productNames = new java.util.HashSet<>();
+
+        for (int i = 0; i < cartItems.count(); i++) {
+            Locator nameElement = cartItems.nth(i).locator(itemNameSelector);
+            String productName = nameElement.innerText().trim();
+
+            if (productNames.contains(productName)) {
+                logger.warn("Duplicate product entry found: {}", productName);
+                return true;
+            }
+            productNames.add(productName);
+        }
+
+        return false;
+    }
+
+    public void logCartContentsForDebugging() {
+        logger.info("========== CART CONTENTS DEBUG LOG ==========");
+
+        Locator cartItems = page.locator(cartItemSelector);
+        logger.info("Total cart items (entries): {}", cartItems.count());
+
+        for (int i = 0; i < cartItems.count(); i++) {
+            Locator item = cartItems.nth(i);
+
+            String name = item.locator(itemNameSelector).innerText().trim();
+            String qtyValue = "N/A";
+            try {
+                qtyValue = item.locator(itemQuantitySelector).inputValue();
+            } catch (Exception e) {
+                // ignore
+            }
+
+            logger.info("Item {}: Name={}, Quantity={}", i + 1, name, qtyValue);
+        }
+
+        logger.info("Total items count: {}", getCartItemCount());
+        logger.info("Total quantity (sum of all quantities): {}", getTotalQuantityOfAllItems());
+        logger.info("Has duplicate entries: {}", hasDuplicateProductEntries());
+        logger.info("============================================");
+    }
+
+    public void clearAllItems() {
+        logger.info("Clearing all items from cart");
+        Locator cartItems = page.locator(cartItemSelector);
+        int itemCount = cartItems.count();
+
+        for (int i = 0; i < itemCount; i++) {
+            try {
+                Locator removeBtn = page.locator(cartItemSelector)
+                        .locator(removeButtonSelector)
+                        .first();
+                if (removeBtn.isVisible()) {
+                    removeBtn.click();
+                    page.waitForLoadState(LoadState.NETWORKIDLE);
+                }
+            } catch (Exception e) {
+                logger.debug("Could not remove item: {}", e.getMessage());
+            }
+        }
+
+        logger.info("Cart cleared");
     }
 }

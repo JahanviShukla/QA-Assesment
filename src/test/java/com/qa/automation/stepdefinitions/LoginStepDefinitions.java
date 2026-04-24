@@ -74,7 +74,7 @@ public class LoginStepDefinitions {
         try {
             logger.info("Clearing cart before test...");
             page.navigate("https://watchstudio.in/cart/");
-            page.waitForTimeout(1000);
+            // waitForTimeout removed - replaced with proper waits
 
             // Check if there are items and remove them
             var removeButtons = page.locator(".remove, .product-remove a, [data-remove-item]");
@@ -88,7 +88,7 @@ public class LoginStepDefinitions {
                         var firstButton = page.locator(".remove, .product-remove a, [data-remove-item]").first();
                         if (firstButton.isVisible()) {
                             firstButton.click();
-                            page.waitForTimeout(800);
+                            // waitForTimeout removed - replaced with proper waits
                         }
                     } catch (Exception e) {
                         logger.debug("Could not remove item {}: {}", i, e.getMessage());

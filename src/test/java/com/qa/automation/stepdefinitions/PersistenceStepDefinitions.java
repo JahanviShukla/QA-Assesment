@@ -27,6 +27,7 @@ public class PersistenceStepDefinitions {
 
     public PersistenceStepDefinitions() {
         this.page = Hooks.getPage();
+        this.homePage = new HomePage(page);
     }
 
     @When("user logs in with {string} and {string}")
@@ -34,14 +35,42 @@ public class PersistenceStepDefinitions {
         loginPage = homePage.goToLogin();
         homePage = loginPage.login(email, password);
         logger.info("User logged in with: {}", email);
+
+        // Clear any existing items in the user's cart from previous test runs
+        try {
+            CartPage existingCartPage = homePage.goToCart();
+            if (!existingCartPage.isCartEmpty()) {
+                logger.info("Clearing existing cart items from previous test runs");
+                existingCartPage.clearAllItems();
+            }
+        } catch (Exception e) {
+            logger.debug("Could not clear existing cart: {}", e.getMessage());
+        }
+    }
+
+    @And("user adds {string} to cart with quantity {int}")
+    public void userAddsToCartWithQuantity(String productName, int quantity) {
+        // Click menu button first (following the pattern from CartStepDefinitions)
+        try {
+            com.microsoft.playwright.Locator menuButton = page.locator("//div[contains(@class,'hfe-nav-menu-icon')]//i[@tabindex='0']").first();
+            if (menuButton.isVisible()) {
+                menuButton.click();
+                logger.info("Clicked menu button");
+            }
+        } catch (Exception e) {
+            logger.warn("Could not click menu button, proceeding directly: {}", e.getMessage());
+        }
+
+        productListingPage = homePage.navigateToMensWatches();
+        productPage = productListingPage.openFirstProduct();
+        productPage.setQuantity(quantity);
+        productPage.clickAddToCart();
+        logger.info("Added {} to cart with quantity {}", productName, quantity);
     }
 
     @And("user adds {string} to cart")
     public void userAddsToCart(String productName) {
-        productListingPage = homePage.navigateToMensWatches();
-        productPage = productListingPage.openFirstProduct();
-        productPage.clickAddToCart();
-        logger.info("Added {} to cart", productName);
+        userAddsToCartWithQuantity(productName, 1);
     }
 
     @And("quantity is set to {int}")
@@ -53,12 +82,25 @@ public class PersistenceStepDefinitions {
 
     @And("user logs out")
     public void userLogsOut() {
-        homePage.logout();
+        loginPage = homePage.logout();
         logger.info("User logged out");
+    }
+
+    @And("user clicks on login button")
+    public void userClicksOnLoginButton() {
+        homePage.clickLoginButton();
+        logger.info("Clicked on login button");
+    }
+
+    @And("user clicks on logout button")
+    public void userClicksOnLogoutButton() {
+        homePage.clickLogoutButton();
+        logger.info("Clicked on logout button");
     }
 
     @And("user logs in again with {string} and {string}")
     public void userLogsInAgainWithAnd(String email, String password) {
+        // After logout, we need to navigate to login page again
         loginPage = homePage.goToLogin();
         homePage = loginPage.login(email, password);
         logger.info("User logged in again");
@@ -70,6 +112,34 @@ public class PersistenceStepDefinitions {
         assertThat(cartPage.containsProduct(productName))
                 .as("Cart should contain " + productName)
                 .isTrue();
+    }
+
+    @Then("cart should contain at least {int} item")
+    public void cartShouldContainAtLeastItem(int itemCount) {
+        cartPage = homePage.goToCart();
+        assertThat(cartPage.getCartItemCount())
+                .as("Cart should contain at least " + itemCount + " item")
+                .isGreaterThanOrEqualTo(itemCount);
+    }
+
+    @And("user adds first product to cart with quantity {int}")
+    public void userAddsFirstProductToCartWithQuantity(int quantity) {
+        // Click menu button first
+        try {
+            com.microsoft.playwright.Locator menuButton = page.locator("//div[contains(@class,'hfe-nav-menu-icon')]//i[@tabindex='0']").first();
+            if (menuButton.isVisible()) {
+                menuButton.click();
+                logger.info("Clicked menu button");
+            }
+        } catch (Exception e) {
+            logger.warn("Could not click menu button, proceeding directly: {}", e.getMessage());
+        }
+
+        productListingPage = homePage.navigateToMensWatches();
+        productPage = productListingPage.openFirstProduct();
+        productPage.setQuantity(quantity);
+        productPage.clickAddToCart();
+        logger.info("Added first product to cart with quantity {}", quantity);
     }
 
     @And("quantity should be {int}")
@@ -89,7 +159,6 @@ public class PersistenceStepDefinitions {
 
     @Given("user is logged in with {string} and {string}")
     public void userIsLoggedInWithAnd(String email, String password) {
-        homePage = new HomePage(page);
         homePage.open();
         loginPage = homePage.goToLogin();
         homePage = loginPage.login(email, password);
@@ -149,7 +218,6 @@ public class PersistenceStepDefinitions {
 
     @Given("user is on homepage without login")
     public void userIsOnHomepageWithoutLogin() {
-        homePage = new HomePage(page);
         homePage.open();
         logger.info("User is on homepage without login");
     }
@@ -219,7 +287,6 @@ public class PersistenceStepDefinitions {
 
     @Given("guest user has added {string} to cart")
     public void guestUserHasAddedToCart(String productName) {
-        homePage = new HomePage(page);
         homePage.open();
         productListingPage = homePage.navigateToMensWatches();
         productPage = productListingPage.openFirstProduct();
@@ -277,5 +344,14 @@ public class PersistenceStepDefinitions {
         assertThat(cartPage.isCartEmpty())
                 .as("Removed state should be preserved")
                 .isTrue();
+    }
+
+    @And("cart contains only the added product")
+    public void cartContainsOnlyTheAddedProduct() {
+        cartPage = homePage.goToCart();
+        int cartItemCount = cartPage.getCartItemCount();
+        assertThat(cartItemCount)
+                .as("Cart should contain only 1 product")
+                .isEqualTo(1);
     }
 }
